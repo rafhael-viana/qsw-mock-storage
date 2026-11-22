@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Ambiente
+.env
+
+# Artefatos de testes (vídeos/screenshots do E2E, cobertura)
+artifacts/
+test-results/
+htmlcov/
+.coverage
+
+# IDEs / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

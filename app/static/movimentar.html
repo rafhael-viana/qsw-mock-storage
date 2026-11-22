@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estoque - Movimentar</title>
+  <link rel="stylesheet" href="/ui/style.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <h1>Estoque</h1>
+    <nav>
+      <a href="/ui/" data-testid="nav-produtos">Produtos</a>
+      <a href="/ui/novo.html" data-testid="nav-novo">Novo produto</a>
+      <a href="/ui/movimentar.html" data-testid="nav-movimentar">Movimentar estoque</a>
+    </nav>
+  </aside>
+
+  <main>
+    <h2>Movimentar estoque</h2>
+    <div class="mensagem" data-testid="mensagem" hidden></div>
+
+    <form data-testid="form-movimentacao" novalidate>
+      <label>Produto
+        <select name="produto" data-testid="campo-produto"></select>
+      </label>
+      <label>Tipo
+        <select name="tipo" data-testid="campo-tipo">
+          <option value="entrada">Entrada</option>
+          <option value="saida">Saída</option>
+        </select>
+      </label>
+      <label>Quantidade
+        <input name="quantidade" data-testid="campo-quantidade" type="number" step="1" min="1" value="1">
+      </label>
+      <p data-testid="estoque-atual"></p>
+      <div>
+        <button type="submit" data-testid="botao-confirmar">Confirmar</button>
+      </div>
+    </form>
+  </main>
+
+  <script src="/ui/app.js"></script>
+  <script>
+    const selectProduto = document.querySelector("[data-testid='campo-produto']");
+    const estoqueAtual = document.querySelector("[data-testid='estoque-atual']");
+    let produtos = [];
+
+    function atualizarEstoqueAtual() {
+      const p = produtos.find((x) => String(x.id) === selectProduto.value);
+      estoqueAtual.textContent = p ? `Estoque atual: ${p.quantidade} unidade(s)` : "";
+    }
+
+    async function carregar(idSelecionado) {
+      try {
+        produtos = await api("/produtos");
+      } catch (e) {
+        mostrarMensagem(`Não foi possível carregar os produtos: ${e.message}`, "erro");
+        return;
+      }
+
+      selectProduto.innerHTML = "";
+      for (const p of produtos) {
+        const opcao = document.createElement("option");
+        opcao.value = p.id;
+        opcao.textContent = p.nome;
+        selectProduto.appendChild(opcao);
+      }
+      if (produtos.length === 0) {
+        mostrarMensagem("Nenhum produto cadastrado. Cadastre um produto primeiro.", "erro");
+      }
+      if (idSelecionado) selectProduto.value = idSelecionado;
+      atualizarEstoqueAtual();
+    }
+
+    selectProduto.addEventListener("change", atualizarEstoqueAtual);
+
+    document.querySelector("[data-testid='form-movimentacao']").addEventListener("submit", async (evento) => {
+      evento.preventDefault();
+      const form = evento.target;
+      const id = form.produto.value;
+      const tipo = form.tipo.value;
+      const quantidade = Number(form.quantidade.value);
+
+      try {
+        const produto = await api(`/produtos/${id}/${tipo}`, {
+          method: "POST",
+          body: JSON.stringify({ quantidade }),
+        });
+        const acao = tipo === "entrada" ? "Entrada" : "Saída";
+        mostrarMensagem(`${acao} registrada. Estoque de "${produto.nome}": ${produto.quantidade} unidade(s).`);
+        await carregar(id);
+      } catch (e) {
+        mostrarMensagem(`Não foi possível registrar: ${e.message}`, "erro");
+      }
+    });
+
+    carregar(new URLSearchParams(window.location.search).get("id"));
+  </script>
+</body>
+</html>

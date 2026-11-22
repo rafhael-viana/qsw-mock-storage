@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estoque - Produtos</title>
+  <link rel="stylesheet" href="/ui/style.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <h1>Estoque</h1>
+    <nav>
+      <a href="/ui/" data-testid="nav-produtos">Produtos</a>
+      <a href="/ui/novo.html" data-testid="nav-novo">Novo produto</a>
+      <a href="/ui/movimentar.html" data-testid="nav-movimentar">Movimentar estoque</a>
+    </nav>
+  </aside>
+
+  <main>
+    <h2>Produtos</h2>
+    <div class="mensagem" data-testid="mensagem" hidden></div>
+
+    <div class="filtros">
+      <input type="search" placeholder="Filtrar por nome..." data-testid="filtro-nome" aria-label="Filtrar por nome">
+      <label style="display:flex;gap:6px;align-items:center;font-weight:normal">
+        <input type="checkbox" data-testid="filtro-sem-estoque"> Só sem estoque
+      </label>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Descrição</th>
+          <th class="numero">Preço</th>
+          <th class="numero">Qtd.</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody data-testid="tabela-produtos"></tbody>
+    </table>
+    <p class="vazio" data-testid="lista-vazia" hidden>Nenhum produto encontrado.</p>
+  </main>
+
+  <script src="/ui/app.js"></script>
+  <script>
+    let produtos = [];
+
+    function renderizar() {
+      const termo = document.querySelector("[data-testid='filtro-nome']").value.trim().toLowerCase();
+      const soSemEstoque = document.querySelector("[data-testid='filtro-sem-estoque']").checked;
+
+      const filtrados = produtos.filter((p) =>
+        p.nome.toLowerCase().includes(termo) && (!soSemEstoque || p.quantidade === 0)
+      );
+
+      const corpo = document.querySelector("[data-testid='tabela-produtos']");
+      corpo.innerHTML = "";
+      for (const p of filtrados) {
+        const linha = document.createElement("tr");
+        linha.dataset.testid = "linha-produto";
+        linha.dataset.produtoId = p.id;
+        if (p.quantidade === 0) linha.classList.add("sem-estoque");
+
+        const colunas = [
+          [p.nome, "", "produto-nome"],
+          [p.descricao || "-", "", "produto-descricao"],
+          [formatarPreco(p.preco), "numero", "produto-preco"],
+          [p.quantidade, "numero qtd", "produto-quantidade"],
+        ];
+        for (const [texto, classe, testid] of colunas) {
+          const td = document.createElement("td");
+          td.textContent = texto;
+          td.className = classe;
+          td.dataset.testid = testid;
+          linha.appendChild(td);
+        }
+
+        const acoes = document.createElement("td");
+        acoes.className = "acoes";
+
+        const movimentar = document.createElement("a");
+        movimentar.href = `/ui/movimentar.html?id=${p.id}`;
+        movimentar.className = "botao secundario";
+        movimentar.textContent = "Movimentar";
+        movimentar.dataset.testid = "botao-movimentar";
+
+        const remover = document.createElement("button");
+        remover.className = "perigo";
+        remover.textContent = "Remover";
+        remover.dataset.testid = "botao-remover";
+        remover.addEventListener("click", () => removerProduto(p));
+
+        acoes.append(movimentar, remover);
+        linha.appendChild(acoes);
+        corpo.appendChild(linha);
+      }
+
+      document.querySelector("[data-testid='lista-vazia']").hidden = filtrados.length > 0;
+    }
+
+    async function carregar() {
+      try {
+        produtos = await api("/produtos");
+        renderizar();
+      } catch (e) {
+        mostrarMensagem(`Não foi possível carregar os produtos: ${e.message}`, "erro");
+      }
+    }
+
+    async function removerProduto(produto) {
+      try {
+        await api(`/produtos/${produto.id}`, { method: "DELETE" });
+        mostrarMensagem(`Produto "${produto.nome}" removido.`);
+        await carregar();
+      } catch (e) {
+        mostrarMensagem(e.message, "erro");
+      }
+    }
+
+    document.querySelector("[data-testid='filtro-nome']").addEventListener("input", renderizar);
+    document.querySelector("[data-testid='filtro-sem-estoque']").addEventListener("change", renderizar);
+    mostrarMensagemDaUrl();
+    carregar();
+  </script>
+</body>
+</html>
